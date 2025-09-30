@@ -82,7 +82,7 @@ def show_category(categ):
 def show_all_task_by_priority():
     all_tasks = Task.select().where((Task.username == start_user) & (Task.active == True)).order_by(Task.priority.asc())
     for task in all_tasks: 
-        print(f'{task.task} {task.priority} {task.date} {task.category} {task.active}')
+        print(f'Задача - {task.task}; Приоритет - {task.priority}; Дата выполнения - {task.date}; Категория - {task.category}; Статус: В работе')
 
 
 #Уведомление
@@ -113,12 +113,13 @@ def delete_user(user):
 
 
 
-
+#Ввод имени пользователя
 start_user = input('Введите имя пользователя ')
 
+#Основная программа
 while exitter():
-    notification(get_user_time())
-    print(
+    notification(get_user_time()) #Уведомление о невыполненных задачах на текущий день
+    print(#Вывод всех команд
 '''
 Возможные команды:
 1 - добавить новую задачу
@@ -130,27 +131,30 @@ while exitter():
 7 - команда администратора
 '''
 )
+    #перебор по командам
     comand = input('Введите номер команды ')
-    if comand == '1':
+    if comand == '1':   #Создание новой задачи
         create_new_task()
-    elif comand == '2':
+    elif comand == '2':  #Вывод задач по категории
         show_category(input('Введите категорию для вывода '))
-    elif comand == '3':
+    elif comand == '3':   #Вывод всех невыполненны задач с их характеристиками
         show_all_task_by_priority()
-    elif comand == '4':
+    elif comand == '4': #Изменение задачи 
         input_old_task = input('Введите старое название задачи ')
         input_new_task = input('Введите новое название задачи')
         update_task(input_old_task, input_new_task)
-    elif comand == '5':
+    elif comand == '5':   #Отметка о выполнении задачи
         task_done = input('Введите выполненную задачу ')
         update_done(task_done)
-    elif comand == '6':
+    elif comand == '6':   #Удаление здачи по названию
         d_task = input('Введите задачу, которую нужно удалить ')
         delete_task(d_task)
-    elif comand == '7' and start_user == 'admin':
+    elif comand == '7' and start_user == 'admin':  #Команда админа - удаление всех задач пользователя
         d_user = input('Введите пользователя, чьи задачи будут удалены безвозвратно ')
         delete_user(d_user)
-
+    else:
+        print('Команда введена неверно')
+        continue
 
 
 db.close()
