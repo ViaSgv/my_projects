@@ -1,12 +1,17 @@
 #to do it
 #Сделать список дел [дата, дело, приоритетность, отметка о выполнении(1, 0)]
 import os
+import sys
 from datetime import date
 from peewee import *
+from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QVBoxLayout, QTextEdit, QScrollArea, QMainWindow
+from PyQt5.QtCore import Qt
+
 
 filename = 'tasks.db'
 db = SqliteDatabase(filename)
 
+print('Вас приветствует задачник TDL!')
 
 #класс стандартной автоматической модели для бд
 class BaseModel(Model):
@@ -87,9 +92,27 @@ def show_all_task_by_priority():
 
 #Уведомление
 def notification(curr_date):
+    app = QApplication(sys.argv)
     today_tasks = Task.select().where((Task.username == start_user) & (Task.active == True) & (Task.date == curr_date))
+    tasks_output = []
     for task in today_tasks: 
         print(f'Задачи на сегодня:\n{task.task} {task.priority} {task.date} {task.category}')
+        tasks_output.append(f'{task.task} {task.priority} {task.date} {task.category}')
+    ntfc_window = QWidget()
+    ntfc_window.setWindowTitle("Невыполненные задачи на сегодня")
+    ntfc_window.resize(400, 300)
+    ntfc_window.setAttribute(Qt.WA_DeleteOnClose)
+    layout = QVBoxLayout()
+
+    text_output = QTextEdit()
+    text_output.setReadOnly(True)
+
+    text_output.setText(str(tasks_output))
+    layout.addWidget(text_output)
+    ntfc_window.setLayout(layout)
+
+    ntfc_window.show()
+    sys.exit(app.exec_())
 
 
 #Перезапись задачи
