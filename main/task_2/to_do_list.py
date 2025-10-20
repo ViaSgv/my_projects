@@ -57,7 +57,35 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
+        first_view = self.login_user_window()
 
+        widget = QWidget()
+        widget.setLayout(first_view)
+        self.setCentralWidget(widget)
+
+
+
+
+    def login_user_window(self):
+        self.lb1 = QLabel('Добро пожаловать в Задачник TDL')
+        self.lb2 = QLabel('Введите ваше имя')
+
+        self.input1 = QLineEdit()
+
+        self.btn1 = QPushButton('Продолжить')
+
+        self.vlo1 = QVBoxLayout()
+        
+        self.vlo1.addWidget(self.lb1)
+        self.vlo1.addWidget(self.lb2)
+        self.vlo1.addWidget(self.input1)
+        self.vlo1.addWidget(self.btn1)
+
+        res = self.vlo1
+
+        return res
+
+    def add_task_window(self):
         # Создаем элементы
         self.lb1 = QLabel('Введите задачу')
         self.lb2 = QLabel('Введите категорию')
@@ -126,13 +154,23 @@ class MainWindow(QMainWindow):
         self.input3.addItems(['1','2','3'])
 
     def printInfo(self):
-        word = self.input1.text()
+        task = self.input1.text()
         defi = self.input2.text()
         cate = self.input3.currentText()
+        date = self.input4.text()
 
-        dict_rec = f'{word} | {defi} | {cate}'
+        dict_rec = f'{task} | {defi} | {cate} | {date}'
+
+        self.check_task
 
         self.word_list.addItem(dict_rec)
+
+    def check_task(self):
+        users = Words.select().where((Words.user == self.user) & (Words.task == self.task) & (Words.active == True)).exists()
+        if users:
+            print('Такая задача уже существует')
+            return False
+        return True
 
 app = QApplication(sys.argv)
 window = MainWindow()
