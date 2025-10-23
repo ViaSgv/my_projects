@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QListWidget,
     QDateEdit,
+    QMessageBox,
 
     # Организующие элементы
     QVBoxLayout,
@@ -168,11 +169,7 @@ class MainWindow(QMainWindow):
 
     def check_task(self):
         task = self.input1.text()
-        users = Words.select().where(
-            (Words.user == self.current_user) & 
-            (Words.task == task) & 
-            (Words.active == True)
-        ).exists()
+        users = Words.select().where((Words.user == self.current_user) & (Words.task == task) & (Words.active == True)).exists()
         if users:
             print('Такая задача уже существует')
             return False
@@ -216,44 +213,125 @@ class MainWindow(QMainWindow):
         self.btn_exit.clicked.connect(self.add_task_window)
 
     def update_task_window(self):
-        self.lb1 = QLabel('Введите название задачи для редактирования')
-        self.lb2 = QLabel('Введите новое название задачи')
-
-        self.input_old_task = QLineEdit()
-        self.input_new_task = QLineEdit()
-
-        self.btn_update = QPushButton('Подтвердить изменение')
+        # Создаем элементы
+        self.lb_title = QLabel('Редактирование задачи')
+        self.lb_select_task = QLabel('Выберите задачу для редактирования:')
+        self.lb_task = QLabel('Название задачи:')
+        self.lb_category = QLabel('Категория:')
+        self.lb_priority = QLabel('Приоритет:')
+        self.lb_date = QLabel('Дата задачи:')
+        
+        self.combo_tasks = QComboBox()
+        self.input_task = QLineEdit()
+        self.input_category = QLineEdit()
+        self.combo_priority = QComboBox()
+        self.input_date = QDateEdit()
+        
+        self.btn_update = QPushButton('Обновить задачу')
         self.btn_back = QPushButton('Назад')
-
-        self.vlo1 = QVBoxLayout()
-        self.vlo2 = QHBoxLayout()
-
-        self.vlo1.addWidget(self.lb1)
-        self.vlo1.addWidget(self.input_old_task)
-        self.vlo1.addWidget(self.lb2)
-        self.vlo1.addWidget(self.input_new_task)
-        self.vlo2.addWidget(self.btn_update)
-        self.vlo2.addWidget(self.btn_back)
-        self.vlo1.addLayout(self.vlo2)
-
+        
+        # Заполняем комбобокс задачами
+        self.load_tasks_to_combo()
+        
+        # Настройка приоритетов
+        self.combo_priority.addItems(['1', '2', '3'])
+        
+        # Настройка даты
+        self.input_date.setDate(date.today())
+        
+        # Компоновка
+        main_layout = QVBoxLayout()
+        
+        main_layout.addWidget(self.lb_title)
+        main_layout.addWidget(self.lb_select_task)
+        main_layout.addWidget(self.combo_tasks)
+        main_layout.addSpacing(20)
+        
+        # Поля редактирования
+        form_layout = QVBoxLayout()
+        form_layout.addWidget(self.lb_task)
+        form_layout.addWidget(self.input_task)
+        form_layout.addWidget(self.lb_category)
+        form_layout.addWidget(self.input_category)
+        form_layout.addWidget(self.lb_priority)
+        form_layout.addWidget(self.combo_priority)
+        form_layout.addWidget(self.lb_date)
+        form_layout.addWidget(self.input_date)
+        
+        main_layout.addLayout(form_layout)
+        main_layout.addSpacing(20)
+        
+        # Кнопки
+        button_layout = QHBoxLayout()
+        button_layout.addWidget(self.btn_update)
+        button_layout.addWidget(self.btn_back)
+        
+        main_layout.addLayout(button_layout)
+        
+        # Устанавливаем компоновку
         widget = QWidget()
-        widget.setLayout(self.vlo1)
+        widget.setLayout(main_layout)
         self.setCentralWidget(widget)
-
+        
+        # Подключаем сигналы
         self.btn_update.clicked.connect(self.update_task)
         self.btn_back.clicked.connect(self.add_task_window)
-    
-    def update_task(self):
-        old_task = self.input_old_task.text()
-        new_task = self.input_new_task.text()
-        
-        Words.update(task=new_task).where(
+        self.combo_tasks.currentIndexChanged.connect(self.on_task_selected)
+
+    def load_tasks_to_combo(self):
+        """Загружает задачи пользователя в комбобокс"""
+        self.combo_tasks.clear()
+        tasks = Words.select().where(
             (Words.user == self.current_user) & 
-            (Words.task == old_task)
-        ).execute()
+            (Words.active == True)
+        )
         
-        print("Задача обновлена!")
-        self.add_task_window()
+        for task in tasks:
+            self.combo_tasks.addItem(f"{task.task} | {task.category}", task.id)
+
+    def on_task_selected(self):
+        """Заполняет поля данными выбранной задачи"""
+        if self.combo_tasks.currentIndex() >= 0:
+            task_id = self.combo_tasks.currentData()
+            task = Words.get_by_id(task_id)
+            
+            self.input_task.setText(task.task)
+            self.input_category.setText(task.category)
+            self.combo_priority.setCurrentText(str(task.priority))
+            self.input_date.setDate(task.date)
+
+    def update_task(self):
+        """Обновляет задачу в базе данных"""
+        if self.combo_tasks.currentIndex() >= 0:
+            task_id = self.combo_tasks.currentData()
+            new_task = self.input_task.text().strip()
+            new_category = self.input_category.text().strip()
+            new_priority = int(self.combo_priority.currentText())
+            new_date = self.input_date.date().toPython()
+            
+            if new_task and new_category:
+                # Проверяем, нет ли дубликата (кроме текущей задачи)
+                existing_task = Words.select().where(
+                    (Words.task == new_task) & 
+                    (Words.user == self.current_user) & 
+                    (Words.id != task_id) &
+                    (Words.active == True)
+                ).first()
+                
+                if existing_task:
+                    QMessageBox.warning(self, 'Ошибка', 'Такая задача уже существует!')
+                else:
+                    Words.update(
+                        task=new_task,
+                        category=new_category,
+                        priority=new_priority,
+                        date=new_date
+                    ).where(Words.id == task_id).execute()
+                    
+                    QMessageBox.information(self, 'Успех', 'Задача обновлена!')
+                    self.load_tasks_to_combo()  # Обновляем список
+            else:
+                QMessageBox.warning(self, 'Ошибка', 'Заполните все поля!')
 
     def task_done_window(self):
         self.lb1 = QLabel('Введите название задачи для отметки о выполнении')
@@ -282,10 +360,7 @@ class MainWindow(QMainWindow):
     def task_done_update(self):
         task_name = self.input_task_done.text()
         
-        Words.update(active=False).where(
-            (Words.user == self.current_user) & 
-            (Words.task == task_name)
-        ).execute()
+        Words.update(active=False).where((Words.user == self.current_user) & (Words.task == task_name)).execute()
         
         print("Задача отмечена как выполненная!")
         self.add_task_window()
