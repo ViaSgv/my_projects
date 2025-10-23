@@ -334,36 +334,76 @@ class MainWindow(QMainWindow):
                 QMessageBox.warning(self, 'Ошибка', 'Заполните все поля!')
 
     def task_done_window(self):
-        self.lb1 = QLabel('Введите название задачи для отметки о выполнении')
-
-        self.input_task_done = QLineEdit()
-
-        self.btn_done = QPushButton('Подтвердить выполнение')
+        # Создаем элементы
+        self.lb_title = QLabel('Отметка задачи выполненной')
+        self.lb_select_task = QLabel('Выберите задачу для отметки о выполнении:')
+        
+        self.combo_tasks = QComboBox()
+        self.btn_done = QPushButton('Отметить выполненной')
         self.btn_back = QPushButton('Назад')
-
-        self.vlo1 = QVBoxLayout()
-        self.vlo2 = QHBoxLayout()
-
-        self.vlo1.addWidget(self.lb1)
-        self.vlo1.addWidget(self.input_task_done)
-        self.vlo2.addWidget(self.btn_done)
-        self.vlo2.addWidget(self.btn_back)
-        self.vlo1.addLayout(self.vlo2)
-
+        
+        # Заполняем комбобокс активными задачами
+        self.load_active_tasks_to_combo()
+        
+        # Компоновка
+        main_layout = QVBoxLayout()
+        
+        main_layout.addWidget(self.lb_title)
+        main_layout.addWidget(self.lb_select_task)
+        main_layout.addWidget(self.combo_tasks)
+        main_layout.addSpacing(20)
+        
+        # Кнопки
+        button_layout = QHBoxLayout()
+        button_layout.addWidget(self.btn_done)
+        button_layout.addWidget(self.btn_back)
+        
+        main_layout.addLayout(button_layout)
+        
+        # Устанавливаем компоновку
         widget = QWidget()
-        widget.setLayout(self.vlo1)
+        widget.setLayout(main_layout)
         self.setCentralWidget(widget)
-
+        
+        # Подключаем сигналы
         self.btn_done.clicked.connect(self.task_done_update)
         self.btn_back.clicked.connect(self.add_task_window)
-    
+
+    def load_active_tasks_to_combo(self):
+        """Загружает только активные задачи пользователя в комбобокс"""
+        self.combo_tasks.clear()
+        tasks = Words.select().where(
+            (Words.user == self.current_user) & 
+            (Words.active == True)
+        )
+        
+        for task in tasks:
+            self.combo_tasks.addItem(f"{task.task} | {task.category} | Приоритет: {task.priority}", task.id)
+
     def task_done_update(self):
-        task_name = self.input_task_done.text()
-        
-        Words.update(active=False).where((Words.user == self.current_user) & (Words.task == task_name)).execute()
-        
-        print("Задача отмечена как выполненная!")
-        self.add_task_window()
+        """Отмечает задачу как выполненную"""
+        if self.combo_tasks.currentIndex() >= 0:
+            task_id = self.combo_tasks.currentData()
+            
+            # Подтверждение действия
+            reply = QMessageBox.question(
+                self, 
+                'Подтверждение', 
+                'Вы уверены, что хотите отметить задачу как выполненную?',
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No
+            )
+            
+            if reply == QMessageBox.StandardButton.Yes:
+                Words.update(active=False).where(Words.id == task_id).execute()
+                
+                QMessageBox.information(self, 'Успех', 'Задача отмечена как выполненная!')
+                
+                # Обновляем список задач и возвращаемся к основному окну
+                self.load_active_tasks_to_combo()
+                self.add_task_window()
+        else:
+            QMessageBox.warning(self, 'Ошибка', 'Выберите задачу для отметки!')
 
 app = QApplication(sys.argv)
 window = MainWindow()
