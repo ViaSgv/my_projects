@@ -56,34 +56,13 @@ class MainWindow(QMainWindow):
 
     def __init__(self):
         super().__init__()
+        self.current_user = None
 
         first_view = self.login_user_window()
 
         widget = QWidget()
         widget.setLayout(first_view)
         self.setCentralWidget(widget)
-
-
-
-
-    def login_user_window(self):
-        self.lb1 = QLabel('Добро пожаловать в Задачник TDL')
-        self.lb2 = QLabel('Введите ваше имя')
-
-        self.input1 = QLineEdit()
-
-        self.btn1 = QPushButton('Продолжить')
-
-        self.vlo1 = QVBoxLayout()
-        
-        self.vlo1.addWidget(self.lb1)
-        self.vlo1.addWidget(self.lb2)
-        self.vlo1.addWidget(self.input1)
-        self.vlo1.addWidget(self.btn1)
-
-        res = self.vlo1
-
-        return res
 
     def add_task_window(self):
         # Создаем элементы
@@ -98,8 +77,9 @@ class MainWindow(QMainWindow):
         self.input4 = QDateEdit()
 
         self.btn1 = QPushButton('Добавить задачу')
-        self.btn2 = QPushButton('Редактировать задачу')
-        self.btn3 = QPushButton('Отметить задачу выполненной')
+        self.btn2 = QPushButton('Вывести все мои задачи')
+        self.btn3 = QPushButton('Редактировать задачу')
+        self.btn4 = QPushButton('Отметить задачу выполненной')
 
         self.word_list = QListWidget()
 
@@ -109,11 +89,9 @@ class MainWindow(QMainWindow):
         self.vlo4 = QHBoxLayout()
         self.vlo5 = QVBoxLayout()
 
-
         self.vlo_enter = QVBoxLayout()
         self.main_layout = QHBoxLayout()
         self.mainly_layout = QVBoxLayout()
-        self.vlo2_enter = QHBoxLayout()
 
         # Заполняем блоки элементами
         self.vlo1.addWidget(self.lb1)
@@ -127,6 +105,7 @@ class MainWindow(QMainWindow):
 
         self.vlo4.addWidget(self.btn2)
         self.vlo4.addWidget(self.btn3)
+        self.vlo4.addWidget(self.btn4)
 
         self.vlo5.addWidget(self.lb4)
         self.vlo5.addWidget(self.input4)
@@ -147,30 +126,169 @@ class MainWindow(QMainWindow):
         widget.setLayout(self.mainly_layout)
         self.setCentralWidget(widget)
 
-
         # Поведение элементов
-        self.btn1.clicked.connect(self.printInfo)
-        self.btn1.mouseDoubleClickEvent = lambda p: self.word_list.addItem('Двойной клик!')
+        self.btn1.clicked.connect(self.add_task)
+        self.btn2.clicked.connect(self.all_user_tasks_window)
+        self.btn3.clicked.connect(self.update_task_window)
+        self.btn4.clicked.connect(self.task_done_window)
         self.input3.addItems(['1','2','3'])
+
+    def login_user_window(self):
+        self.lb1 = QLabel('Добро пожаловать в Задачник TDL')
+        self.lb2 = QLabel('Введите ваше имя')
+
+        self.input_user = QLineEdit()
+
+        self.btn1 = QPushButton('Продолжить')
+
+        self.vlo1 = QVBoxLayout()
+        
+        self.vlo1.addWidget(self.lb1)
+        self.vlo1.addWidget(self.lb2)
+        self.vlo1.addWidget(self.input_user)
+        self.vlo1.addWidget(self.btn1)
+
+        self.btn1.clicked.connect(self.set_user_and_continue)
+
+        return self.vlo1
+    
+    def set_user_and_continue(self):
+        self.current_user = self.input_user.text()
+        self.add_task_window()
 
     def printInfo(self):
         task = self.input1.text()
-        defi = self.input2.text()
-        cate = self.input3.currentText()
+        category = self.input2.text()
+        priority = self.input3.currentText()
         date = self.input4.text()
 
-        dict_rec = f'{task} | {defi} | {cate} | {date}'
-
-        self.check_task
+        dict_rec = f'{task} | {category} | {priority} | {date}'
 
         self.word_list.addItem(dict_rec)
 
     def check_task(self):
-        users = Words.select().where((Words.user == self.user) & (Words.task == self.task) & (Words.active == True)).exists()
+        task = self.input1.text()
+        users = Words.select().where(
+            (Words.user == self.current_user) & 
+            (Words.task == task) & 
+            (Words.active == True)
+        ).exists()
         if users:
             print('Такая задача уже существует')
             return False
         return True
+    
+    def add_task(self):
+        if self.check_task():
+            task_name = self.input1.text()
+            category = self.input2.text()
+            priority = int(self.input3.currentText())
+            task_date = self.input4.date().toPython()
+            
+            Words.create(
+                user=self.current_user, 
+                task=task_name, 
+                category=category, 
+                priority=priority, 
+                date=task_date
+            )
+            self.printInfo()
+            print("Задача добавлена!")
+    
+    def all_user_tasks_window(self):
+        tasks = Words.select().where(Words.user == self.current_user)
+        
+        self.list_tasks = QListWidget()
+        self.btn_exit = QPushButton('Вернуться назад')
+
+        for task in tasks:
+            status = "активна" if task.active else "выполнена"
+            self.list_tasks.addItem(f"{task.task} | {task.category} | Приоритет: {task.priority} | {task.date} | {status}")
+
+        self.vlo1 = QVBoxLayout()
+        self.vlo1.addWidget(self.list_tasks)
+        self.vlo1.addWidget(self.btn_exit)
+
+        widget = QWidget()
+        widget.setLayout(self.vlo1)
+        self.setCentralWidget(widget)
+
+        self.btn_exit.clicked.connect(self.add_task_window)
+
+    def update_task_window(self):
+        self.lb1 = QLabel('Введите название задачи для редактирования')
+        self.lb2 = QLabel('Введите новое название задачи')
+
+        self.input_old_task = QLineEdit()
+        self.input_new_task = QLineEdit()
+
+        self.btn_update = QPushButton('Подтвердить изменение')
+        self.btn_back = QPushButton('Назад')
+
+        self.vlo1 = QVBoxLayout()
+        self.vlo2 = QHBoxLayout()
+
+        self.vlo1.addWidget(self.lb1)
+        self.vlo1.addWidget(self.input_old_task)
+        self.vlo1.addWidget(self.lb2)
+        self.vlo1.addWidget(self.input_new_task)
+        self.vlo2.addWidget(self.btn_update)
+        self.vlo2.addWidget(self.btn_back)
+        self.vlo1.addLayout(self.vlo2)
+
+        widget = QWidget()
+        widget.setLayout(self.vlo1)
+        self.setCentralWidget(widget)
+
+        self.btn_update.clicked.connect(self.update_task)
+        self.btn_back.clicked.connect(self.add_task_window)
+    
+    def update_task(self):
+        old_task = self.input_old_task.text()
+        new_task = self.input_new_task.text()
+        
+        Words.update(task=new_task).where(
+            (Words.user == self.current_user) & 
+            (Words.task == old_task)
+        ).execute()
+        
+        print("Задача обновлена!")
+        self.add_task_window()
+
+    def task_done_window(self):
+        self.lb1 = QLabel('Введите название задачи для отметки о выполнении')
+
+        self.input_task_done = QLineEdit()
+
+        self.btn_done = QPushButton('Подтвердить выполнение')
+        self.btn_back = QPushButton('Назад')
+
+        self.vlo1 = QVBoxLayout()
+        self.vlo2 = QHBoxLayout()
+
+        self.vlo1.addWidget(self.lb1)
+        self.vlo1.addWidget(self.input_task_done)
+        self.vlo2.addWidget(self.btn_done)
+        self.vlo2.addWidget(self.btn_back)
+        self.vlo1.addLayout(self.vlo2)
+
+        widget = QWidget()
+        widget.setLayout(self.vlo1)
+        self.setCentralWidget(widget)
+
+        self.btn_done.clicked.connect(self.task_done_update)
+        self.btn_back.clicked.connect(self.add_task_window)
+    
+    def task_done_update(self):
+        task_name = self.input_task_done.text()
+        
+        Words.update(active=False).where(
+            (Words.user == self.current_user) & 
+            (Words.task == task_name)
+        ).execute()
+        
+        print("Задача отмечена как выполненная!")
+        self.add_task_window()
 
 app = QApplication(sys.argv)
 window = MainWindow()
