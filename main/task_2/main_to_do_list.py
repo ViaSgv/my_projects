@@ -2,7 +2,6 @@ from PySide6.QtWidgets import QApplication, QMessageBox
 from peewee import *
 import os
 import sys
-import random
 from datetime import date
 from windows_show import MainWindow
 
@@ -33,13 +32,14 @@ class DatabaseManager:
         self.Words = Words
 
         if not os.path.exists(self.filename):
+            self.db.connect()
             self.db.create_tables([Words])
 
 
 class LogicHandler:
     def __init__(self):
         self.db_manager = DatabaseManager()
-        self.Words = self.db_manager.Words  # Сохраняем ссылку на модель
+        self.Words = self.db_manager.Words
         self.window = None
         self.current_user = None
 
@@ -54,6 +54,14 @@ class LogicHandler:
         else:
             QMessageBox.warning(self.window, 'Ошибка', 'Введите имя пользователя!')
 
+    def add_task_window(self):
+        """Переход к окну добавления задач"""
+        if not self.current_user:
+            QMessageBox.warning(self.window, 'Ошибка', 'Сначала войдите в систему!')
+            return
+            
+        self.window.add_task_window()
+
     def add_task(self):
         """Добавление новой задачи"""
         if not self.current_user:
@@ -66,7 +74,6 @@ class LogicHandler:
             priority = int(self.window.input3.currentText())
             task_date = self.window.input4.date().toPython()
             
-            # ИСПРАВЛЕНИЕ: используем self.Words вместо Words
             self.Words.create(
                 user=self.current_user, 
                 task=task_name, 
@@ -79,6 +86,10 @@ class LogicHandler:
             task_data = (task_name, category, priority, task_date.strftime('%Y-%m-%d'))
             self.window.printInfo(task_data)
             
+            # Очистка полей ввода
+            self.window.input1.clear()
+            self.window.input2.clear()
+            
             QMessageBox.information(self.window, 'Успех', 'Задача добавлена!')
 
     def check_task(self):
@@ -88,13 +99,13 @@ class LogicHandler:
             QMessageBox.warning(self.window, 'Ошибка', 'Введите задачу!')
             return False
             
-        users = self.Words.select().where(
+        exists = self.Words.select().where(
             (self.Words.user == self.current_user) & 
             (self.Words.task == task) & 
             (self.Words.active == True)
         ).exists()
         
-        if users:
+        if exists:
             QMessageBox.warning(self.window, 'Ошибка', 'Такая задача уже существует!')
             return False
         return True
@@ -152,17 +163,22 @@ class LogicHandler:
         """Заполняет поля данными выбранной задачи"""
         if self.window.combo_tasks.currentIndex() >= 0:
             task_id = self.window.combo_tasks.currentData()
-            task = self.Words.get_by_id(task_id)  # Исправлено: self.Words
-            
-            self.window.input_task.setText(task.task)
-            self.window.input_category.setText(task.category)
-            self.window.combo_priority.setCurrentText(str(task.priority))
-            self.window.input_date.setDate(task.date)
+            if task_id:
+                task = self.Words.get_by_id(task_id)
+                
+                self.window.input_task.setText(task.task)
+                self.window.input_category.setText(task.category)
+                self.window.combo_priority.setCurrentText(str(task.priority))
+                self.window.input_date.setDate(task.date)
 
     def update_task(self):
         """Обновляет задачу в базе данных"""
         if self.window.combo_tasks.currentIndex() >= 0:
             task_id = self.window.combo_tasks.currentData()
+            if not task_id:
+                QMessageBox.warning(self.window, 'Ошибка', 'Выберите задачу для редактирования!')
+                return
+                
             new_task = self.window.input_task.text().strip()
             new_category = self.window.input_category.text().strip()
             new_priority = int(self.window.combo_priority.currentText())
@@ -170,7 +186,7 @@ class LogicHandler:
             
             if new_task and new_category:
                 # Проверяем, нет ли дубликата (кроме текущей задачи)
-                existing_task = self.Words.select().where(  # Исправлено: self.Words
+                existing_task = self.Words.select().where(
                     (self.Words.task == new_task) & 
                     (self.Words.user == self.current_user) & 
                     (self.Words.id != task_id) &
@@ -180,7 +196,7 @@ class LogicHandler:
                 if existing_task:
                     QMessageBox.warning(self.window, 'Ошибка', 'Такая задача уже существует!')
                 else:
-                    self.Words.update(  # Исправлено: self.Words
+                    self.Words.update(
                         task=new_task,
                         category=new_category,
                         priority=new_priority,
@@ -188,14 +204,19 @@ class LogicHandler:
                     ).where(self.Words.id == task_id).execute()
                     
                     QMessageBox.information(self.window, 'Успех', 'Задача обновлена!')
-                    self.load_tasks_to_combo()  # Обновляем список
+                    self.load_tasks_to_combo()
             else:
                 QMessageBox.warning(self.window, 'Ошибка', 'Заполните все поля!')
+        else:
+            QMessageBox.warning(self.window, 'Ошибка', 'Выберите задачу для редактирования!')
 
     def task_done_update(self):
         """Отмечает задачу как выполненную"""
         if self.window.combo_tasks.currentIndex() >= 0:
             task_id = self.window.combo_tasks.currentData()
+            if not task_id:
+                QMessageBox.warning(self.window, 'Ошибка', 'Выберите задачу для отметки!')
+                return
             
             # Подтверждение действия
             reply = QMessageBox.question(
@@ -207,7 +228,7 @@ class LogicHandler:
             )
             
             if reply == QMessageBox.StandardButton.Yes:
-                self.Words.update(active=False).where(self.Words.id == task_id).execute()  # Исправлено: self.Words
+                self.Words.update(active=False).where(self.Words.id == task_id).execute()
                 
                 QMessageBox.information(self.window, 'Успех', 'Задача отмечена как выполненная!')
                 
