@@ -106,6 +106,7 @@ class MainWindow(QMainWindow):
         self.btn3.clicked.connect(self.logic_handler.update_task_window)
         self.btn4.clicked.connect(self.logic_handler.task_done_window)
         self.input3.addItems(['1','2','3'])
+        self.input4.setDate(date.today())
 
     def all_user_tasks_window(self, tasks):
         """Окно просмотра всех задач пользователя"""
