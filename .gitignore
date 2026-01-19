@@ -1,0 +1,59 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+.venv/
+env.bak/
+venv.bak/
+
+# Virtual Environment
+venv/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Database
+*.db
+*.sqlite
+*.db-journal
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Secrets
+token*.txt
+*.pem
+*.key
+
+# PyInstaller
+build/
+dist/
+*.spec
+
+# Logs
+*.log
+logs/
+
+# Temp files
+*.tmp
+*.temp
+
+# Project specific
+incubator.db
+test_bot.py
+token_API.txt
+*.exe
